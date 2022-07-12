@@ -1,0 +1,35 @@
+.header{
+    background-color:rgb(22, 42, 109);
+    color: white;
+    display: flex;
+    justify-content: center;
+}
+.headerContainer{
+    width: 90%;
+    margin: 20px 0px 100px 0px;
+}
+.headerList{
+    gap: 40px;
+    display: flex;
+    margin-bottom: 50px;
+}
+.listItem{
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px 16px;
+}
+.listItem.active{
+    border: 1px solid white;
+    border-radius: 20px;
+}
+.header-text{
+    padding: 20px 0px;
+}
+.headerBtn{
+   padding: 10px;
+   background-color: rgb(21, 75, 223);
+   color: white;
+   border: none;
+   cursor: pointer;
+}
