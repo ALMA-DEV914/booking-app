@@ -4,6 +4,7 @@
     display: flex;
     justify-content: center;
     position: relative;
+    font-size: 18px;
 }
 .headerContainer{
     width: 90%;
