@@ -5,7 +5,7 @@ function Navbar() {
   return (
     <div className='navbar'>
       <div className='navContainer'>
-          <span className='logo'>AlmitaBooking</span>
+          <span className='logo'>A&PBooking</span>
       <div className='navItems'>
           <button className='navButton'>Register</button>
           <button className='navButton'>Login</button>
