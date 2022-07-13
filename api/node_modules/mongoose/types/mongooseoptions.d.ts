@@ -1,5 +1,6 @@
+import stream = require('stream');
+
 declare module 'mongoose' {
-  import stream = require('stream');
 
   interface MongooseOptions {
     /**
@@ -78,14 +79,6 @@ declare module 'mongoose' {
     | { color?: boolean; shell?: boolean; }
     | stream.Writable
     | ((collectionName: string, methodName: string, ...methodArgs: any[]) => void);
-
-    /**
-     * If `false`, it will change the `createdAt` field to be [`immutable: false`](https://mongoosejs.com/docs/api/schematype.html#schematype_SchemaType-immutable)
-     * which means you can update the `createdAt`.
-     *
-     * @default true
-     */
-    'timestamps.createdAt.immutable'?: boolean
 
     /** If set, attaches [maxTimeMS](https://docs.mongodb.com/manual/reference/operator/meta/maxTimeMS/) to every query */
     maxTimeMS?: number;

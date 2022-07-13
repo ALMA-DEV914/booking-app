@@ -6,11 +6,13 @@
 }
 
 .hotelWrapper {
-  width: 80%;
+  width: 75%;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: relative;
+  gap: 50px;
+
+}
+.hotelMain{
+  width: 60%;
 }
 
 .bookNow {
@@ -54,7 +56,8 @@
 }
 
 .hotelImgWrapper {
-  width: 33%;
+  width: 80%;
+  padding: 15px;
 }
 
 .hotelImg {
@@ -86,6 +89,8 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  height: 250px;
+  margin: auto 0;
 }
 
 .hotelDetailsPrice > h1 {

@@ -1,8 +1,11 @@
-import {BrowserRouter, Routes, Route} from "react-router-dom";
-import Home from "./pages/homepage/Home";
-import List from "./pages/list/List";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+} from "react-router-dom";
+import Home from "./pages/home/Home";
 import Hotel from "./pages/hotel/Hotel";
-import "./App.css"
+import List from "./pages/list/List";
 import Login from "./pages/login/Login";
 
 function App() {

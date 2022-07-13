@@ -1,24 +1,25 @@
 .navbar{
-    height: 100px;
-    background-color: rgb(10, 55, 68);
-    display: flex;
-    justify-items: center;
+  height: 100px;
+  background-color: rgb(10, 55, 68);
+  display: flex;
+  justify-items: center;
 }
 .navContainer{
-    width: 90%;
-    margin: 0 auto;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  width: 90%;
+  margin: 0 auto;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .logo{
-    font-weight: 800;
-    font-size: 26pt;
+  font-weight: 800;
+  font-size: 26pt;
 }
 .navButton{
-    margin-left: 20px;
-    border: none;
-    padding: 5px 10px;
-    font-size: large;
+  margin-left: 20px;
+  border: none;
+  padding: 5px 10px;
+  font-size: large;
 }
+

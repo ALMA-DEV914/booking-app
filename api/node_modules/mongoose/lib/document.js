@@ -53,7 +53,6 @@ const populateModelSymbol = require('./helpers/symbols').populateModelSymbol;
 const scopeSymbol = require('./helpers/symbols').scopeSymbol;
 const schemaMixedSymbol = require('./schema/symbols').schemaMixedSymbol;
 const parentPaths = require('./helpers/path/parentPaths');
-
 let DocumentArray;
 let MongooseArray;
 let Embedded;
@@ -136,6 +135,7 @@ function Document(obj, fields, skipId, options) {
   // excluded fields
   if (utils.isPOJO(fields)) {
     exclude = isExclusive(fields);
+
     this.$__.fields = fields;
     this.$__.exclude = exclude;
   }
@@ -300,35 +300,7 @@ Object.defineProperty(Document.prototype, '$locals', {
 
 
 /**
- * Boolean flag specifying if the document is new. If you create a document
- * using `new`, this document will be considered "new". `$isNew` is how
- * Mongoose determines whether `save()` should use `insertOne()` to create
- * a new document or `updateOne()` to update an existing document.
- *
- * #### Example:
- *     const user = new User({ name: 'John Smith' });
- *     user.$isNew; // true
- *
- *     await user.save(); // Sends an `insertOne` to MongoDB
- *
- * On the other hand, if you load an existing document from the database
- * using `findOne()` or another [query operation](/docs/queries.html),
- * `$isNew` will be false.
- *
- * #### Example:
- *     const user = await User.findOne({ name: 'John Smith' });
- *     user.$isNew; // false
- *
- * For subdocuments, `$isNew` is true if either the parent has `$isNew` set,
- * or if you create a new subdocument.
- *
- * #### Example:
- *     // Assume `Group` has a document array `users`
- *     const group = await Group.findOne();
- *     group.users[0].$isNew; // false
- *
- *     group.users.push({ name: 'John Smith' });
- *     group.users[1].$isNew; // true
+ * Boolean flag specifying if the document is new.
  *
  * @api public
  * @property $isNew
@@ -339,7 +311,7 @@ Object.defineProperty(Document.prototype, '$locals', {
 Document.prototype.$isNew;
 
 /**
- * Legacy alias for `$isNew`.
+ * Boolean flag specifying if the document is new.
  *
  * @api public
  * @property isNew
@@ -668,11 +640,7 @@ Document.prototype.$__buildDoc = function(obj, fields, skipId, exclude, hasInclu
     for (let i = 0; i < len; ++i) {
       const piece = path[i];
 
-      if (!curPath.length) {
-        curPath = piece;
-      } else {
-        curPath += '.' + piece;
-      }
+      curPath += (!curPath.length ? '' : '.') + piece;
 
       // support excluding intermediary levels
       if (exclude === true) {
@@ -1063,7 +1031,6 @@ Document.prototype.overwrite = function overwrite(obj) {
  * @param {Any} val the value to set
  * @param {Schema|String|Number|Buffer|*} [type] optionally specify a type for "on-the-fly" attributes
  * @param {Object} [options] optionally specify options that modify the behavior of the set
- * @param {Boolean} [options.merge=false] if true, setting a [nested path](/docs/subdocs.html#subdocuments-versus-nested-paths) will merge existing values rather than overwrite the whole object. So `doc.set('nested', { a: 1, b: 2 })` becomes `doc.set('nested.a', 1); doc.set('nested.b', 2);`
  * @method $set
  * @name $set
  * @memberOf Document
@@ -1077,7 +1044,8 @@ Document.prototype.$set = function $set(path, val, type, options) {
     type = undefined;
   }
 
-  const merge = options && options.merge;
+  options = options || {};
+  const merge = options.merge;
   const adhoc = type && type !== true;
   const constructing = type === true;
   let adhocs;
@@ -1087,7 +1055,7 @@ Document.prototype.$set = function $set(path, val, type, options) {
   let key;
   let prefix;
 
-  const strict = options && 'strict' in options
+  const strict = 'strict' in options
     ? options.strict
     : this.$__.strictMode;
 
@@ -1118,7 +1086,7 @@ Document.prototype.$set = function $set(path, val, type, options) {
 
     // `_skipMinimizeTopLevel` is because we may have deleted the top-level
     // nested key to ensure key order.
-    const _skipMinimizeTopLevel = options && options._skipMinimizeTopLevel || false;
+    const _skipMinimizeTopLevel = options._skipMinimizeTopLevel || false;
     if (len === 0 && _skipMinimizeTopLevel) {
       delete options._skipMinimizeTopLevel;
       if (val) {
@@ -1354,10 +1322,6 @@ Document.prototype.$set = function $set(path, val, type, options) {
 
   if (!schema) {
     this.$__set(pathToMark, path, options, constructing, parts, schema, val, priorVal);
-
-    if (pathType === 'nested' && val == null) {
-      cleanModifiedSubpaths(this, path);
-    }
     return this;
   }
 
@@ -1409,7 +1373,7 @@ Document.prototype.$set = function $set(path, val, type, options) {
     })();
 
     let didPopulate = false;
-    if (refMatches && val instanceof Document && (!val.$__.wasPopulated || utils.deepEqual(val.$__.wasPopulated.value, val._id))) {
+    if (refMatches && val instanceof Document) {
       const unpopulatedValue = (schema && schema.$isSingleNested) ? schema.cast(val, this) : val._id;
       this.$populated(path, unpopulatedValue, { [populateModelSymbol]: val.constructor });
       val.$__.wasPopulated = { value: unpopulatedValue };
@@ -1437,11 +1401,7 @@ Document.prototype.$set = function $set(path, val, type, options) {
       // later in `$__set()` because we don't take `_doc` when we iterate through
       // a single nested doc. That's to make sure we get the correct context.
       // Otherwise we would double-call the setter, see gh-7196.
-      if (options != null && options.overwriteImmutable) {
-        val = schema.applySetters(val, this, false, priorVal, { overwriteImmutable: true });
-      } else {
-        val = schema.applySetters(val, this, false, priorVal);
-      }
+      val = schema.applySetters(val, this, false, priorVal, options);
     }
 
     if (Array.isArray(val) &&
@@ -1495,18 +1455,14 @@ Document.prototype.$set = function $set(path, val, type, options) {
   }
 
   if (shouldSet) {
-    let savedState = null;
-    let savedStatePath = null;
-    if (!constructing) {
-      const doc = this.$isSubdocument ? this.ownerDocument() : this;
-      savedState = doc.$__.savedState;
-      savedStatePath = this.$isSubdocument ? this.$__.fullPath + '.' + path : path;
-      if (savedState != null) {
-        const firstDot = savedStatePath.indexOf('.');
-        const topLevelPath = firstDot === -1 ? savedStatePath : savedStatePath.slice(0, firstDot);
-        if (!savedState.hasOwnProperty(topLevelPath)) {
-          savedState[topLevelPath] = utils.clone(doc.$__getValue(topLevelPath));
-        }
+    const doc = this.$isSubdocument ? this.ownerDocument() : this;
+    const savedState = doc.$__.savedState;
+    const savedStatePath = this.$isSubdocument ? this.$__.fullPath + '.' + path : path;
+    if (savedState != null) {
+      const firstDot = savedStatePath.indexOf('.');
+      const topLevelPath = firstDot === -1 ? savedStatePath : savedStatePath.slice(0, firstDot);
+      if (!savedState.hasOwnProperty(topLevelPath)) {
+        savedState[topLevelPath] = utils.clone(doc.$__getValue(topLevelPath));
       }
     }
 
@@ -1600,7 +1556,7 @@ Document.prototype.set = Document.prototype.$set;
  */
 
 Document.prototype.$__shouldModify = function(pathToMark, path, options, constructing, parts, schema, val, priorVal) {
-  if (options && options._skipMarkModified) {
+  if (options._skipMarkModified) {
     return false;
   }
   if (this.$isNew) {
@@ -1663,6 +1619,7 @@ Document.prototype.$__set = function(pathToMark, path, options, constructing, pa
 
   const shouldModify = this.$__shouldModify(pathToMark, path, options, constructing, parts,
     schema, val, priorVal);
+  const _this = this;
 
   if (shouldModify) {
     this.markModified(pathToMark);
@@ -1678,6 +1635,14 @@ Document.prototype.$__set = function(pathToMark, path, options, constructing, pa
           item && item.__parentArray && (item.__parentArray = val);
         });
       }
+
+      // Small hack for gh-1638: if we're overwriting the entire array, ignore
+      // paths that were modified before the array overwrite
+      this.$__.activePaths.forEach(function(modifiedPath) {
+        if (modifiedPath.startsWith(path + '.')) {
+          _this.$__.activePaths.ignore(modifiedPath);
+        }
+      });
     }
   } else if (Array.isArray(val) && Array.isArray(priorVal) && utils.isMongooseArray(val) && utils.isMongooseArray(priorVal)) {
     val[arrayAtomicsSymbol] = priorVal[arrayAtomicsSymbol];
@@ -1750,7 +1715,7 @@ Document.prototype.$__setValue = function(path, val) {
 /**
  * Returns the value of a path.
  *
- * #### Example:
+ * #### Example
  *
  *     // path
  *     doc.get('age') // 47
@@ -1868,6 +1833,7 @@ Document.prototype.$__path = function(path) {
  */
 
 Document.prototype.markModified = function(path, scope) {
+  // console.log('MarkModified', path, new Error().stack);
   this.$__.activePaths.modify(path);
   if (scope != null && !this.$isSubdocument) {
     this.$__.pathsToScopes = this.$__pathsToScopes || {};
@@ -1923,7 +1889,7 @@ Document.prototype.$ignore = function(path) {
  * A path `a` may be in `modifiedPaths()` but not in `directModifiedPaths()`
  * because a child of `a` was directly modified.
  *
- * #### Example:
+ * #### Example
  *     const schema = new Schema({ foo: String, nested: { bar: String } });
  *     const Model = mongoose.model('Test', schema);
  *     await Model.create({ foo: 'original', nested: { bar: 'original' } });
@@ -2079,7 +2045,7 @@ Document.prototype[documentModifiedPaths] = Document.prototype.modifiedPaths;
  *
  * If `path` is given, checks if a path or any full path containing `path` as part of its path chain has been modified.
  *
- * #### Example:
+ * #### Example
  *
  *     doc.set('documents.0.title', 'changed');
  *     doc.isModified()                      // true
@@ -2125,7 +2091,7 @@ Document.prototype[documentIsModified] = Document.prototype.isModified;
 /**
  * Checks if a path is set to its default.
  *
- * #### Example:
+ * #### Example
  *
  *     MyModel = mongoose.model('test', { name: { type: String, default: 'Val '} });
  *     const m = new MyModel();
@@ -2189,13 +2155,13 @@ Document.prototype.$isDeleted = function(val) {
 /**
  * Returns true if `path` was directly set and modified, else false.
  *
- * #### Example:
+ * #### Example
  *
  *     doc.set('documents.0.title', 'changed');
  *     doc.isDirectModified('documents.0.title') // true
  *     doc.isDirectModified('documents') // false
  *
- * @param {String|String[]} path
+ * @param {String|Array<String>} path
  * @return {Boolean}
  * @api public
  */
@@ -2245,13 +2211,13 @@ Document.prototype.isInit = function(path) {
 /**
  * Checks if `path` was selected in the source query which initialized this document.
  *
- * #### Example:
+ * #### Example
  *
  *     const doc = await Thing.findOne().select('name');
  *     doc.isSelected('name') // true
  *     doc.isSelected('age')  // false
  *
- * @param {String|String[]} path
+ * @param {String|Array<String>} path
  * @return {Boolean}
  * @api public
  */
@@ -2326,7 +2292,7 @@ Document.prototype.$__isSelected = Document.prototype.isSelected;
  * Checks if `path` was explicitly selected. If no projection, always returns
  * true.
  *
- * #### Example:
+ * #### Example
  *
  *     Thing.findOne().select('nested.name').exec(function (err, doc) {
  *        doc.isDirectSelected('nested.name') // true
@@ -2519,7 +2485,7 @@ function _getPathsToValidate(doc) {
       const fullPathToSubdoc = subdoc.$__fullPathWithIndexes();
 
       for (const p of paths) {
-        if (p == null || p.startsWith(fullPathToSubdoc + '.')) {
+        if (p === null || p.startsWith(fullPathToSubdoc + '.')) {
           paths.delete(p);
         }
       }
@@ -2538,14 +2504,6 @@ function _getPathsToValidate(doc) {
     const _pathType = doc.$__schema.path(path);
     if (!_pathType) {
       continue;
-    }
-
-    if (_pathType.$isMongooseDocumentArray) {
-      for (const p of paths) {
-        if (p == null || p.startsWith(_pathType.path + '.')) {
-          paths.delete(p);
-        }
-      }
     }
 
     // Optimization: if primitive path with no validators, or array of primitives
@@ -2567,11 +2525,9 @@ function _getPathsToValidate(doc) {
   // the children as well
   for (const path of paths) {
     const _pathType = doc.$__schema.path(path);
-    if (!_pathType) {
-      continue;
-    }
 
-    if (!_pathType.$isMongooseArray ||
+    if (!_pathType ||
+        !_pathType.$isMongooseArray ||
         // To avoid potential performance issues, skip doc arrays whose children
         // are not required. `getPositionalPathType()` may be slow, so avoid
         // it unless we have a case of #6364
@@ -2583,7 +2539,8 @@ function _getPathsToValidate(doc) {
 
     // gh-11380: optimization. If the array isn't a document array and there's no validators
     // on the array type, there's no need to run validation on the individual array elements.
-    if (_pathType.$isMongooseArray &&
+    if (_pathType &&
+        _pathType.$isMongooseArray &&
         !_pathType.$isMongooseDocumentArray && // Skip document arrays...
         !_pathType.$embeddedSchemaType.$isMongooseArray && // and arrays of arrays
         _pathType.$embeddedSchemaType.validators.length === 0) {
@@ -3138,7 +3095,7 @@ function _checkImmutableSubpaths(subdoc, schematype, priorVal) {
 /**
  * Checks if a path is invalid
  *
- * @param {String|String[]} path the field to check
+ * @param {String|Array<String>} path the field to check
  * @method $isValid
  * @memberOf Document
  * @instance
@@ -3175,47 +3132,48 @@ Document.prototype.$isValid = function(path) {
 
 Document.prototype.$__reset = function reset() {
   let _this = this;
+  DocumentArray || (DocumentArray = require('./types/DocumentArray'));
 
-  // Skip for subdocuments
-  const subdocs = this.$parent() === this ? this.$getAllSubdocs() : [];
-  const resetArrays = new Set();
-  for (const subdoc of subdocs) {
-    const fullPathWithIndexes = subdoc.$__fullPathWithIndexes();
-    if (this.isModified(fullPathWithIndexes) || isParentInit(fullPathWithIndexes)) {
-      subdoc.$__reset();
-      if (subdoc.$isDocumentArrayElement) {
-        if (!resetArrays.has(subdoc.parentArray())) {
-          const array = subdoc.parentArray();
-          this.$__.activePaths.clearPath(fullPathWithIndexes.replace(/\.\d+$/, '').slice(-subdoc.$basePath - 1));
-          array[arrayAtomicsBackupSymbol] = array[arrayAtomicsSymbol];
-          array[arrayAtomicsSymbol] = {};
-
-          resetArrays.add(array);
+  this.$__.activePaths
+    .map('init', 'modify', function(i) {
+      return _this.$__getValue(i);
+    })
+    .filter(function(val) {
+      return val && Array.isArray(val) && utils.isMongooseDocumentArray(val) && val.length;
+    })
+    .forEach(function(array) {
+      let i = array.length;
+      while (i--) {
+        const doc = array[i];
+        if (!doc) {
+          continue;
         }
-      } else {
-        if (subdoc.$parent() === this) {
-          this.$__.activePaths.clearPath(subdoc.$basePath);
-        } else if (subdoc.$parent() != null && subdoc.$parent().$isSubdocument) {
-          // If map path underneath subdocument, may end up with a case where
-          // map path is modified but parent still needs to be reset. See gh-10295
-          subdoc.$parent().$__reset();
-        }
+        doc.$__reset();
       }
-    }
-  }
 
-  function isParentInit(path) {
-    path = path.indexOf('.') === -1 ? [path] : path.split('.');
-    let cur = '';
-    for (let i = 0; i < path.length; ++i) {
-      cur += (cur.length ? '.' : '') + path[i];
-      if (_this.$__.activePaths[cur] === 'init') {
-        return true;
+      _this.$__.activePaths.init(array.$path());
+
+      array[arrayAtomicsBackupSymbol] = array[arrayAtomicsSymbol];
+      array[arrayAtomicsSymbol] = {};
+    });
+
+  this.$__.activePaths.
+    map('init', 'modify', function(i) {
+      return _this.$__getValue(i);
+    }).
+    filter(function(val) {
+      return val && !Array.isArray(val) && val.$isSingleNested;
+    }).
+    forEach(function(doc) {
+      doc.$__reset();
+      if (doc.$parent() === _this) {
+        _this.$__.activePaths.init(doc.$basePath);
+      } else if (doc.$parent() != null && doc.$parent().$isSubdocument) {
+        // If map path underneath subdocument, may end up with a case where
+        // map path is modified but parent still needs to be reset. See gh-10295
+        doc.$parent().$__reset();
       }
-    }
-
-    return false;
-  }
+    });
 
   // clear atomics
   this.$__dirty().forEach(function(dirt) {
@@ -3428,7 +3386,7 @@ Document.prototype.$getAllSubdocs = function() {
       }, seed);
     } else if (val && !Array.isArray(val) && val.$isSingleNested) {
       seed = Object.keys(val._doc).reduce(function(seed, path) {
-        return docReducer(val, seed, path);
+        return docReducer(val._doc, seed, path);
       }, seed);
       seed.push(val);
     } else if (val && utils.isMongooseDocumentArray(val)) {
@@ -3506,9 +3464,9 @@ Document.prototype.$toObject = function(options, json) {
 
   const path = json ? 'toJSON' : 'toObject';
   const baseOptions = this.constructor &&
-    this.constructor.base &&
-    this.constructor.base.options &&
-    get(this.constructor.base.options, path) || {};
+  this.constructor.base &&
+  this.constructor.base.options &&
+  get(this.constructor.base.options, path) || {};
   const schemaOptions = this.$__schema && this.$__schema.options || {};
   // merge base default options with Schema's set default options if available.
   // `clone` is necessary here because `utils.options` directly modifies the second input.
@@ -3516,8 +3474,8 @@ Document.prototype.$toObject = function(options, json) {
   defaultOptions = utils.options(defaultOptions, clone(schemaOptions[path] || {}));
 
   // If options do not exist or is not an object, set it to empty object
-  options = utils.isPOJO(options) ? { ...options } : {};
-  options._calledWithOptions = options._calledWithOptions || { ...options };
+  options = utils.isPOJO(options) ? clone(options) : {};
+  options._calledWithOptions = options._calledWithOptions || clone(options);
 
   let _minimize;
   if (options._calledWithOptions.minimize != null) {
@@ -3541,12 +3499,11 @@ Document.prototype.$toObject = function(options, json) {
   // `clone()` will recursively call `$toObject()` on embedded docs, so we
   // need the original options the user passed in, plus `_isNested` and
   // `_parentOptions` for checking whether we need to depopulate.
-  const cloneOptions = Object.assign({}, options, {
+  const cloneOptions = Object.assign(utils.clone(options), {
     _isNested: true,
     json: json,
     minimize: _minimize,
-    flattenMaps: flattenMaps,
-    _seen: (options && options._seen) || new Map()
+    flattenMaps: flattenMaps
   });
 
   if (utils.hasUserDefinedProperty(options, 'getters')) {
@@ -3668,7 +3625,7 @@ Document.prototype.$toObject = function(options, json) {
  *
  *     schema.set('toObject', { virtuals: true })
  *
- * #### Transform:
+ * #### Transform
  *
  * We may need to perform a transformation of the resulting object based on some criteria, say to remove some sensitive information or return a custom object. In this case we set the optional `transform` function.
  *
@@ -3680,7 +3637,7 @@ Document.prototype.$toObject = function(options, json) {
  * - `ret` The plain object representation which has been converted
  * - `options` The options in use (either schema options or the options passed inline)
  *
- * #### Example:
+ * #### Example
  *
  *     // specify the transform schema option
  *     if (!schema.options.toObject) schema.options.toObject = {};
@@ -3971,19 +3928,12 @@ function applySchemaTypeTransforms(self, json) {
     const schematype = schema.paths[path];
     if (typeof schematype.options.transform === 'function') {
       const val = self.$get(path);
-      if (val === undefined) {
-        continue;
-      }
       const transformedValue = schematype.options.transform.call(self, val);
       throwErrorIfPromise(path, transformedValue);
       utils.setValue(path, transformedValue, json);
     } else if (schematype.$embeddedSchemaType != null &&
         typeof schematype.$embeddedSchemaType.options.transform === 'function') {
-      const val = self.$get(path);
-      if (val === undefined) {
-        continue;
-      }
-      const vals = [].concat(val);
+      const vals = [].concat(self.$get(path));
       const transform = schematype.$embeddedSchemaType.options.transform;
       for (let i = 0; i < vals.length; ++i) {
         const transformedValue = transform.call(self, vals[i]);
@@ -4276,10 +4226,8 @@ Document.prototype.populate = function populate() {
  * @api public
  * @return {Array<Document>} array of populated documents. Empty array if there are no populated documents associated with this document.
  * @memberOf Document
- * @method $getPopulatedDocs
  * @instance
  */
-
 Document.prototype.$getPopulatedDocs = function $getPopulatedDocs() {
   let keys = [];
   if (this.$__.populated != null) {
@@ -4302,10 +4250,10 @@ Document.prototype.$getPopulatedDocs = function $getPopulatedDocs() {
  *
  * #### Example:
  *
- *     const doc = await Model.findOne().populate('author');
- *
- *     console.log(doc.author.name); // Dr.Seuss
- *     console.log(doc.populated('author')); // '5144cf8050f071d979c118a7'
+ *     Model.findOne().populate('author').exec(function (err, doc) {
+ *       console.log(doc.author.name)         // Dr.Seuss
+ *       console.log(doc.populated('author')) // '5144cf8050f071d979c118a7'
+ *     })
  *
  * If the path was not populated, returns `undefined`.
  *
@@ -4358,38 +4306,6 @@ Document.prototype.populated = function(path, val, options) {
 };
 
 Document.prototype.$populated = Document.prototype.populated;
-
-/**
- * Throws an error if a given path is not populated
- *
- * #### Example:
- *
- *     const doc = await Model.findOne().populate('author');
- *
- *     doc.$assertPopulated('author'); // does not throw
- *     doc.$assertPopulated('other path'); // throws an error
- *
- *
- * @param {String|String[]} path
- * @return {Document} this
- * @memberOf Document
- * @method $assertPopulated
- * @instance
- * @api public
- */
-
-Document.prototype.$assertPopulated = function $assertPopulated(paths) {
-  if (Array.isArray(paths)) {
-    paths.forEach(path => this.$assertPopulated(path));
-    return this;
-  }
-
-  if (!this.$populated(paths)) {
-    throw new MongooseError(`Expected path "${paths}" to be populated`);
-  }
-
-  return this;
-};
 
 /**
  * Takes a populated field and returns it to its unpopulated state.

@@ -10,7 +10,6 @@ const EventEmitter = require('events').EventEmitter;
 const SchemaDocumentArrayOptions =
   require('../options/SchemaDocumentArrayOptions');
 const SchemaType = require('../schematype');
-const SubdocumentPath = require('./SubdocumentPath');
 const discriminator = require('../helpers/model/discriminator');
 const handleIdOption = require('../helpers/schema/handleIdOption');
 const handleSpreadDoc = require('../helpers/document/handleSpreadDoc');
@@ -76,15 +75,6 @@ function DocumentArrayPath(key, schema, options, schemaOptions) {
   this.$embeddedSchemaType.cast = function(value, doc, init) {
     return parentSchemaType.cast(value, doc, init)[0];
   };
-  this.$embeddedSchemaType.doValidate = function(value, fn, scope, options) {
-    const Constructor = getConstructor(this.caster, value);
-
-    if (value && !(value instanceof Constructor)) {
-      value = new Constructor(value, scope, null, null, options && options.index != null ? options.index : null);
-    }
-
-    return SubdocumentPath.prototype.doValidate.call(this, value, fn, scope, options);
-  };
   this.$embeddedSchemaType.$isMongooseDocumentArrayElement = true;
   this.$embeddedSchemaType.caster = this.Constructor;
   this.$embeddedSchemaType.schema = this.schema;
@@ -123,12 +113,10 @@ function _createConstructor(schema, options, baseClass) {
   Subdocument || (Subdocument = require('../types/ArraySubdocument'));
 
   // compile an embedded document for this schema
-  function EmbeddedDocument(_value, parentArray) {
+  function EmbeddedDocument() {
     Subdocument.apply(this, arguments);
-    if (parentArray == null || parentArray.getArrayParent() == null) {
-      return;
-    }
-    this.$session(parentArray.getArrayParent().$session());
+
+    this.$session(this.ownerDocument().$session());
   }
 
   schema._preCompile();
@@ -536,9 +524,9 @@ DocumentArrayPath.prototype.applyGetters = function(value, scope) {
  * Scopes paths selected in a query to this array.
  * Necessary for proper default application of subdocument values.
  *
- * @param {DocumentArrayPath} array the array to scope `fields` paths
- * @param {Object|undefined} fields the root fields selected in the query
- * @param {Boolean|undefined} init if we are being created part of a query result
+ * @param {DocumentArrayPath} array - the array to scope `fields` paths
+ * @param {Object|undefined} fields - the root fields selected in the query
+ * @param {Boolean|undefined} init - if we are being created part of a query result
  */
 
 function scopePaths(array, fields, init) {
@@ -572,12 +560,6 @@ function scopePaths(array, fields, init) {
   return hasKeys && selected || undefined;
 }
 
-/*!
- * ignore
- */
-
-DocumentArrayPath.defaultOptions = {};
-
 /**
  * Sets a default option for all DocumentArray instances.
  *
@@ -586,13 +568,15 @@ DocumentArrayPath.defaultOptions = {};
  *     // Make all numbers have option `min` equal to 0.
  *     mongoose.Schema.DocumentArray.set('_id', false);
  *
- * @param {String} option The name of the option you'd like to set (e.g. trim, lowercase, etc...)
- * @param {Any} value The value of the option you'd like to set.
- * @return {void}
+ * @param {String} option - The option you'd like to set the value for
+ * @param {*} value - value for option
+ * @return {undefined}
  * @function set
  * @static
  * @api public
  */
+
+DocumentArrayPath.defaultOptions = {};
 
 DocumentArrayPath.set = SchemaType.set;
 
