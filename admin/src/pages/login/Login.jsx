@@ -42,6 +42,8 @@ const Login = () => {
   return (
     <div className="login">
       <div className="lContainer">
+        <h2>Admin Login</h2>
+        <label>Username</label>
         <input
           type="text"
           placeholder="username"
@@ -49,6 +51,7 @@ const Login = () => {
           onChange={handleChange}
           className="lInput"
         />
+        <label>Password</label>
         <input
           type="password"
           placeholder="password"
