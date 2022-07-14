@@ -5,7 +5,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "nodemon index.js"
+    "start": "nodemon index.js",
+    "watch": "nodemon",
+    "heroku-postbuild": "cd client && npm install --only=dev && npm install && npm run build",
+    "server": "nodemon index.js --ignore client"
   },
   "keywords": [],
   "author": "",

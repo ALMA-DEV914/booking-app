@@ -74,7 +74,7 @@ const Register = () => {
         />
         <label>Contact Number</label>
         <input
-          type="number"
+          type="text"
           placeholder="contact number"
           id="contact"
           onChange={handleChange}
