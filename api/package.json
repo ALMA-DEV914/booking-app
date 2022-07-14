@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "watch": "nodemon",
-    "heroku-postbuild": "cd client && npm install --only=dev && npm install && npm run build"
+    "watch": "nodemon"
+    
   
   },
   "keywords": [],
