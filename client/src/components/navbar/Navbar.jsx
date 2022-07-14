@@ -14,10 +14,11 @@ const Navbar = () => {
           <span className="logo">A&PBooking</span>
         </Link>
         
-        
         {user ? <Logout/> : (
           <div className="navItems">
+            <Link to="/register">
             <button className="navButton">Register</button>
+            </Link>
             <Link to='/login'>
             <button className="navButton">Login</button>
             </Link>

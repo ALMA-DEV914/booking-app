@@ -17,10 +17,10 @@ const New = ({ inputs, title }) => {
     e.preventDefault();
     const data = new FormData();
     data.append("file", file);
-    data.append("upload_preset", "upload");
+    data.append("upload_preset", "Booking-App");
     try {
       const uploadRes = await axios.post(
-        "https://api.cloudinary.com/v1_1/lamadev/image/upload",
+        "https://api.cloudinary.com/v1_1/handmade-shop/image/upload",
         data
       );
 
