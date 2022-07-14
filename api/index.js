@@ -13,7 +13,7 @@ dotenv.config();
 
 const connect = async () => {
   try {
-    await mongoose.connect(process.env.MONGO);
+    await mongoose.connect(process.env.MONGODB);
     console.log("Connected to mongoDB.");
   } catch (error) {
     throw error;
@@ -44,6 +44,11 @@ app.use((err, req, res, next) => {
     stack: err.stack,
   });
 });
+
+app.get('/', function(req, res){
+  res.sendFile(__dirname+'/bin/index.html'); // change the path to your index.html
+});
+
 
 app.listen(8800, () => {
   connect();

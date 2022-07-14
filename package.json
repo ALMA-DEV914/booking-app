@@ -1,0 +1,30 @@
+{
+  "name": "booking-app",
+  "version": "1.0.0",
+  "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node api/index.js",
+    "dev": "concurrently \"cd api && npm run watch\" \"cd client && npm start\"",
+    "install": "cd api && npm i && cd ../client && npm i",
+    "build": "cd client && npm run build",
+    "seed": "cd api && npm run seed"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ALMA-DEV914/booking-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ALMA-DEV914/booking-app/issues"
+  },
+  "homepage": "https://github.com/ALMA-DEV914/booking-app#readme",
+ 
+
+  "devDependencies": {
+    "concurrently": "^7.2.2"
+  }
+}
