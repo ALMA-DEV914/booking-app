@@ -11,9 +11,24 @@ import cors from "cors";
 const app = express();
 dotenv.config();
 
+const PORT = process.env.PORT || 5000
+// Accessing the path module
+const path = require("path");
+
+// Step 1:
+app.use(express.static(path.resolve(__dirname, "./client/build")));
+// Step 2:
+app.get("*", function (request, response) {
+  response.sendFile(path.resolve(__dirname, "./client/build", "index.html"));
+});
+
 const connect = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB);
+    await mongoose.connect(process.env.MONGODB),
+    {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    }
     console.log("Connected to mongoDB.");
   } catch (error) {
     throw error;
@@ -45,12 +60,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.get('/', function(req, res){
-  res.sendFile(__dirname+'/bin/index.html'); // change the path to your index.html
-});
-
-
-app.listen(8800, () => {
+app.listen(PORT, () => {
   connect();
-  console.log("Connected to backend.");
+  console.log(`Connected to backend. ${PORT}`);
 });
+
