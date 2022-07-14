@@ -6,7 +6,6 @@
     "start": "node api/index.js",
     "dev": "concurrently \"cd api && npm run watch\" \"cd client && npm start\"",
     "install": "cd api && npm i && cd ../client && npm i",
-    "seed": "cd api && npm run seed",
     "build": "cd client && npm run build"
   },
   "repository": {
