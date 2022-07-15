@@ -11,7 +11,7 @@ import path from "path";
 
 const app = express();
 dotenv.config();
-
+const PORT =  8800;
 
 const connect = async () => {
   try {
@@ -55,7 +55,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
 
-app.listen(8800, () => {
+app.listen(PORT, () => {
   connect();
   console.log("Connected to backend.");
 });
