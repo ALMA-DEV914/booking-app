@@ -12,6 +12,7 @@ import path from "path";
 const app = express();
 dotenv.config();
 
+
 const connect = async () => {
   try {
     await mongoose.connect(process.env.MONGODB),
@@ -47,6 +48,8 @@ app.use((err, req, res, next) => {
     stack: err.stack,
   });
 });
+
+// Step 2:
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/build/index.html'));
